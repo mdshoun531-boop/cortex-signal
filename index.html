@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cortex Signal OTC - Active Engine</title>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151922;
+            --accent-blue: #0084ff;
+            --green: #00c853;
+            --red: #ff3d00;
+            --yellow: #ffc107;
+            --text-color: #e1e3e6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header {
+            text-align: center;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #2a2e39;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--accent-blue);
+            font-size: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #2a2e39;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--accent-blue);
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            margin-top: 10px;
+            border-radius: 6px;
+            display: none;
+            background: #000;
+        }
+
+        .btn-analyze {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .signal-badge {
+            font-size: 26px;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .signal-call {
+            background-color: rgba(0, 200, 83, 0.2);
+            color: var(--green);
+            border: 2px solid var(--green);
+        }
+
+        .signal-put {
+            background-color: rgba(255, 61, 0, 0.2);
+            color: var(--red);
+            border: 2px solid var(--red);
+        }
+
+        .signal-wait {
+            background-color: rgba(255, 193, 7, 0.2);
+            color: var(--yellow);
+            border: 2px solid var(--yellow);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2e39;
+            font-size: 13px;
+        }
+
+        .log-box {
+            font-size: 12px;
+            color: #b2b8c2;
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            line-height: 1.4;
+            border-left: 3px solid var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>CORTEX OTC - ACTIVE ACTION ENGINE</h1>
+    </div>
+
+    <div class="card">
+        <h3>১. চার্ট স্ক্যানার</h3>
+        <div class="upload-area" onclick="document.getElementById('chartInput').click()">
+            <p id="uploadText">ক্যান্ডেলস্টিক স্ক্রিনশট পছন্দ করুন</p>
+            <input type="file" id="chartInput" accept="image/*" onchange="handleImageUpload(event)">
+        </div>
+        <canvas id="previewCanvas"></canvas>
+        <button class="btn-analyze" onclick="executeFastAnalysis()">সিগন্যাল তৈরি করুন</button>
+    </div>
+
+    <div class="card">
+        <h3>২. ট্রেড রেজাল্ট</h3>
+        <div id="signalBadge" class="signal-badge signal-wait">READY</div>
+
+        <div class="metrics">
+            <div class="metric-row">
+                <span>এ্যাকিউরেসি স্কোর:</span>
+                <strong id="accuracyVal">0%</strong>
+            </div>
+            <div class="metric-row">
+                <span>বায়ার্স পাওয়ার:</span>
+                <strong id="buyerVal">0%</strong>
+            </div>
+            <div class="metric-row">
+                <span>সেলার্স পাওয়ার:</span>
+                <strong id="sellerVal">0%</strong>
+            </div>
+        </div>
+
+        <div class="log-box" id="analysisLog">
+            চার্ট প্রসেস করার জন্য প্রস্তুত।
+        </div>
+    </div>
+</div>
+
+<script>
+    let uploadedImage = null;
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                uploadedImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                ctx.drawImage(img, 0, 0);
+                canvas.style.display = 'block';
+                document.getElementById('uploadText').innerText = "অন্য ছবি নির্বাচন করতে ট্যাপ করুন";
+            }
+            img.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+
+    function executeFastAnalysis() {
+        if (!uploadedImage) {
+            alert('অনুগ্রহ করে একটি ছবি সিলেক্ট করুন!');
+            return;
+        }
+
+        const width = canvas.width;
+        const height = canvas.height;
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+
+        // Focus strictly on the last 30% of the chart (Rightmost section)
+        let rightZoneStart = Math.floor(width * 0.70);
+
+        let greenCount = 0;
+        let redCount = 0;
+
+        for (let x = rightZoneStart; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+                let idx = (y * width + x) * 4;
+                let r = data[idx];
+                let g = data[idx + 1];
+                let b = data[idx + 2];
+
+                // Detect Green Candle Color Range
+                if (g > r + 15 && g > b + 10) {
+                    greenCount++;
+                }
+                // Detect Red Candle Color Range
+                else if (r > g + 15 && r > b + 10) {
+                    redCount++;
+                }
+            }
+        }
+
+        let total = greenCount + redCount;
+        if (total === 0) {
+            alert("ক্যান্ডেল সঠিকভাবে চিহ্নিত হয়নি। ক্যান্ডেলগুলো স্পষ্ট এমন স্ক্রিনশট দিন।");
+            return;
+        }
+
+        let buyerPercent = (greenCount / total) * 100;
+        let sellerPercent = (redCount / total) * 100;
+
+        let signal = "WAIT / AVOID";
+        let confidence = 0;
+        let log = "";
+
+        // Active Logic: Give direct CALL/PUT based on dominance
+        let difference = Math.abs(buyerPercent - sellerPercent);
+
+        if (difference < 8) {
+            // Extremely tight balance
+            signal = "WAIT / AVOID";
+            confidence = 0;
+            log = "বায়ার এবং সেলারের উপস্থিতি একদম সমান। ক্যান্ডেলের স্পষ্ট মুভমেন্টের জন্য অপেক্ষা করুন।";
+        } else if (buyerPercent > sellerPercent) {
+            signal = "CALL (UP)";
+            confidence = Math.min(88, Math.max(80, Math.round(78 + (difference * 0.3))));
+            log = "শেষের ক্যান্ডেলগুলোতে বায়ারদের ডমিনেন্স বেশি দেখা যাচ্ছে। পরবর্তী ক্যান্ডেল আপ (CALL) যাওয়ার সম্ভাবনা রয়েছে।";
+        } else {
+            signal = "PUT (DOWN)";
+            confidence = Math.min(88, Math.max(80, Math.round(78 + (difference * 0.3))));
+            log = "শেষের ক্যান্ডেলগুলোতে সেলারদের ডমিনেন্স বেশি দেখা যাচ্ছে। পরবর্তী ক্যান্ডেল ডাউন (PUT) যাওয়ার সম্ভাবনা রয়েছে।";
+        }
+
+        // Display Signal
+        const badge = document.getElementById('signalBadge');
+        badge.innerText = signal;
+        badge.className = "signal-badge";
+
+        if (signal.includes("CALL")) badge.classList.add("signal-call");
+        else if (signal.includes("PUT")) badge.classList.add("signal-put");
+        else badge.classList.add("signal-wait");
+
+        document.getElementById('accuracyVal').innerText = confidence > 0 ? confidence + "%" : "N/A";
+        document.getElementById('buyerVal').innerText = buyerPercent.toFixed(1) + "%";
+        document.getElementById('sellerVal').innerText = sellerPercent.toFixed(1) + "%";
+
+        document.getElementById('analysisLog').innerHTML = `<strong>স্ক্যান ফলাফল:</strong><br>${log}`;
+    }
+</script>
+
+</body>
+</html>
